@@ -1,0 +1,35 @@
+{
+  "name": "qmis",
+  "version": "1.0.0",
+  "main": "./main.js",
+  "scripts": {
+    "webpack": "webpack",
+    "start": "electron . --disable-gpu --use-angle=swiftshader",
+    "build": "tsc -p tsconfig.json && webpack"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@types/react": "^18.0.0",
+    "@types/three": "^0.173.0",
+    "d3": "^7.9.0",
+    "electron": "^34.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.173.0",
+    "tonal": "^6.4.0",
+    "typescript": "^5.7.3",
+    "webmidi": "^3.1.12"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/electron": "^1.4.38",
+    "@types/react-dom": "^18.0.0",
+    "@types/webmidi": "^2.1.0",
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  }
+}
