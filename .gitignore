@@ -139,3 +139,5 @@ node_modules/electron/
 **/Electron.app/**
 **/Electron Framework.framework/**
 .venv/
+.AppleGothic.ttf
+.Avenir.ttc

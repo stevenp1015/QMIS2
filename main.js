@@ -35,6 +35,9 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
 const path = __importStar(require("path"));
+require("electron-reload")(__dirname, {
+    electron: require(`${__dirname}/node_modules/electron`),
+});
 function createWindow() {
     const win = new electron_1.BrowserWindow({
         width: 1000,
@@ -42,6 +45,7 @@ function createWindow() {
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,
+            preload: path.join(__dirname, 'preload.js'), // Add preload script
         },
     });
     win.loadFile(path.join(__dirname, 'index.html'));

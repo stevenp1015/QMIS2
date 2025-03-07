@@ -1,13 +1,20 @@
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 
+require("electron-reload")(__dirname, {
+  electron: require(`${__dirname}/node_modules/electron`),
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
     height: 600,
+    frame: false,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      preload: path.join(__dirname, 'preload.js'), // Add preload script
+
     },
   });
   win.loadFile(path.join(__dirname, 'index.html'));

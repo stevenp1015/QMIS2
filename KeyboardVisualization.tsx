@@ -1,5 +1,9 @@
+/// <reference path="./globals.d.ts" />
+
+console.log('NODE_ENV from preload:', window.processEnv.NODE_ENV);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 import React, { useEffect, useRef } from 'react';
-import { Note } from 'tonal';
+import { Note, Interval } from 'tonal';
 
 interface KeyboardVisualizationProps {
   noteHistory: Array<{
@@ -26,18 +30,70 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
   const BLACK_KEY_HEIGHT = 80;
   const FIRST_KEY_MIDI = 21; // A0
 
+  const getInterval = (
+    firstNote: number,
+    secondNote: number
+  ): { num: number; name: string } => {
+    // Get note names from MIDI numbers
+    const firstNoteName = Note.fromMidi(firstNote);
+    const secondNoteName = Note.fromMidi(secondNote);
+
+    if (!firstNoteName || !secondNoteName) {
+      return { num: 0, name: "Unknown" };
+    }
+
+    // Calculate the interval using tonal.js
+    const intervalName = Interval.distance(firstNoteName, secondNoteName);
+
+    // Get interval properties
+    const semitones = Math.abs(secondNote - firstNote);
+    // intervalName is already defined above
+
+    return {
+      num: semitones,
+      name: intervalName,
+    };
+  };
+
+  // Function to get two most recent distinct notes
+  const getRecentDistinctNotes = (
+    noteHistory: Array<{ note: number; velocity: number; timestamp: number }>
+  ): [number, number] | null => {
+    // Sort by timestamp in descending order (most recent first)
+    const sortedNotes = [...noteHistory].sort(
+      (a, b) => b.timestamp - a.timestamp
+    );
+
+    if (sortedNotes.length < 2) return null;
+
+    // Get most recent note
+    const lastNote = sortedNotes[0].note;
+
+    // Find the most recent different note
+    for (let i = 1; i < sortedNotes.length; i++) {
+      if (sortedNotes[i].note !== lastNote) {
+        return [sortedNotes[i].note, lastNote];
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Calculate canvas dimensions based on piano keys
-    const whiteKeysCount = countWhiteKeys(FIRST_KEY_MIDI, FIRST_KEY_MIDI + KEYS_COUNT - 1);
+    const whiteKeysCount = countWhiteKeys(
+      FIRST_KEY_MIDI,
+      FIRST_KEY_MIDI + KEYS_COUNT - 1
+    );
     const width = whiteKeysCount * WHITE_KEY_WIDTH;
     canvas.width = width;
-    canvas.height = WHITE_KEY_HEIGHT + 60; // Extra space for labels and suggestions
+    canvas.height = WHITE_KEY_HEIGHT + 100; // Extra space for labels and suggestions
 
     // Draw keyboard
     drawKeyboard(ctx, noteHistory, currentScale, currentChord);
@@ -59,28 +115,44 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
   };
 
   // Get proper positioning for white and black keys
-  const getKeyPosition = (midiNote: number, ctx: CanvasRenderingContext2D): { x: number; isBlack: boolean } => {
+  const getKeyPosition = (
+    midiNote: number,
+    ctx: CanvasRenderingContext2D
+  ): { x: number; isBlack: boolean } => {
     const noteInOctave = midiNote % 12;
     const octave = Math.floor(midiNote / 12) - 1; // MIDI note 0 is C-1
     const isBlack = isBlackKey(midiNote);
-    
+
     // Count white keys before this note
     let whiteKeysBefore = 0;
     for (let note = FIRST_KEY_MIDI; note < midiNote; note++) {
       if (!isBlackKey(note)) whiteKeysBefore++;
     }
-    
+
     if (isBlack) {
       // Position black keys relative to white keys
       let offset = 0;
       switch (noteInOctave) {
-        case 1: offset = 0.7; break; // C#
-        case 3: offset = 1.7; break; // D#
-        case 6: offset = 3.7; break; // F#
-        case 8: offset = 4.7; break; // G#
-        case 10: offset = 5.7; break; // A#
+        case 1:
+          offset = 0.7;
+          break; // C#
+        case 3:
+          offset = 1.7;
+          break; // D#
+        case 6:
+          offset = 3.7;
+          break; // F#
+        case 8:
+          offset = 4.7;
+          break; // G#
+        case 10:
+          offset = 5.7;
+          break; // A#
       }
-      return { x: whiteKeysBefore * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2, isBlack: true };
+      return {
+        x: whiteKeysBefore * WHITE_KEY_WIDTH - BLACK_KEY_WIDTH / 2,
+        isBlack: true,
+      };
     } else {
       return { x: whiteKeysBefore * WHITE_KEY_WIDTH, isBlack: false };
     }
@@ -88,20 +160,22 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
 
   // Extract scale notes from the current scale
   const getScaleNotes = (scale: string): number[] => {
-    if (!scale || scale === 'Unknown') return [];
-    const [root, ...typeParts] = scale.split(' ');
-    const type = typeParts.join(' ');
+    if (!scale || scale === "Unknown") return [];
+    const [root, ...typeParts] = scale.split(" ");
+    const type = typeParts.join(" ");
     if (!root) return [];
-    
+
     try {
-      const scaleObj = require('tonal').Scale.get(`${root} ${type}`);
+      const scaleObj = require("tonal").Scale.get(`${root} ${type}`);
       if (!scaleObj || !scaleObj.notes) return [];
-      
+
       // Map to MIDI note numbers (mod 12 for octave independence)
-      return scaleObj.notes.map((noteName: string) => {
-        const midi = Note.midi(noteName);
-        return midi ? midi % 12 : -1;
-      }).filter((n: number) => n !== -1);
+      return scaleObj.notes
+        .map((noteName: string) => {
+          const midi = Note.midi(noteName);
+          return midi ? midi % 12 : -1;
+        })
+        .filter((n: number) => n !== -1);
     } catch (e) {
       console.error("Error parsing scale:", e);
       return [];
@@ -110,17 +184,19 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
 
   // Extract chord notes from the current chord
   const getChordNotes = (chord: string): number[] => {
-    if (!chord || chord === 'N/A') return [];
-    
+    if (!chord || chord === "N/A") return [];
+
     try {
-      const chordObj = require('tonal').Chord.get(chord);
+      const chordObj = require("tonal").Chord.get(chord);
       if (!chordObj || !chordObj.notes) return [];
-      
+
       // Map to MIDI note numbers (mod 12 for octave independence)
-      return chordObj.notes.map((noteName: string) => {
-        const midi = Note.midi(noteName);
-        return midi ? midi % 12 : -1;
-      }).filter((n: number) => n !== -1);
+      return chordObj.notes
+        .map((noteName: string) => {
+          const midi = Note.midi(noteName);
+          return midi ? midi % 12 : -1;
+        })
+        .filter((n: number) => n !== -1);
     } catch (e) {
       console.error("Error parsing chord:", e);
       return [];
@@ -136,126 +212,206 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
   ) => {
     // Clear canvas
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    
+
     // Extract active notes (pressed within the last 500ms)
     const now = Date.now();
     const activeNotes = noteHistory
-      .filter(n => now - n.timestamp < 500)
-      .map(n => n.note);
-    
+      .filter((n) => now - n.timestamp < 500)
+      .map((n) => n.note);
+
     // Extract scale and chord notes
     const scaleNotes = getScaleNotes(currentScale);
     const chordNotes = getChordNotes(currentChord);
-    
+
     // Draw white keys first (all 88 keys)
-    for (let midiNote = FIRST_KEY_MIDI; midiNote < FIRST_KEY_MIDI + KEYS_COUNT; midiNote++) {
+    for (
+      let midiNote = FIRST_KEY_MIDI;
+      midiNote < FIRST_KEY_MIDI + KEYS_COUNT;
+      midiNote++
+    ) {
       if (!isBlackKey(midiNote)) {
         const { x } = getKeyPosition(midiNote, ctx);
-        
+
         // Determine key color based on whether it's pressed, in scale, in chord
         const isPressed = activeNotes.includes(midiNote);
         const isInScale = scaleNotes.includes(midiNote % 12);
         const isInChord = chordNotes.includes(midiNote % 12);
-        
+
         // Draw white key
         ctx.beginPath();
         ctx.rect(x, 0, WHITE_KEY_WIDTH, WHITE_KEY_HEIGHT);
-        
+
         if (isPressed) {
-          ctx.fillStyle = '#4B9CFF'; // Blue when pressed
+          ctx.fillStyle = "#4B9CFF"; // Blue when pressed
         } else if (isInChord) {
-          ctx.fillStyle = 'rgba(255, 156, 0, 0.4)'; // Orange tint for chord notes
+          ctx.fillStyle = "rgba(255, 156, 0, 0.4)"; // Orange tint for chord notes
         } else if (isInScale) {
-          ctx.fillStyle = 'rgba(0, 200, 83, 0.2)'; // Green tint for scale notes
+          ctx.fillStyle = "rgba(0, 200, 83, 0.2)"; // Green tint for scale notes
         } else {
-          ctx.fillStyle = 'white';
+          ctx.fillStyle = "white";
         }
-        
+
         ctx.fill();
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = "#333333";
         ctx.lineWidth = 1;
         ctx.stroke();
-        
+
         // Add note label at the bottom of white keys
-        if (midiNote % 12 === 0) { // C notes
-          ctx.fillStyle = '#333333';
-          ctx.font = '10px Arial';
-          ctx.fillText(`C${Math.floor(midiNote / 12) - 1}`, x + 2, WHITE_KEY_HEIGHT - 5);
+        if (midiNote % 12 === 0) {
+          // C notes
+          ctx.fillStyle = "#333333";
+          ctx.font = "10px Arial";
+          ctx.fillText(
+            `C${Math.floor(midiNote / 12) - 1}`,
+            x + 2,
+            WHITE_KEY_HEIGHT - 5
+          );
         }
       }
     }
-    
+
     // Draw black keys on top
-    for (let midiNote = FIRST_KEY_MIDI; midiNote < FIRST_KEY_MIDI + KEYS_COUNT; midiNote++) {
+    for (
+      let midiNote = FIRST_KEY_MIDI;
+      midiNote < FIRST_KEY_MIDI + KEYS_COUNT;
+      midiNote++
+    ) {
       if (isBlackKey(midiNote)) {
         const { x } = getKeyPosition(midiNote, ctx);
-        
+
         // Determine key color based on whether it's pressed, in scale, in chord
         const isPressed = activeNotes.includes(midiNote);
         const isInScale = scaleNotes.includes(midiNote % 12);
         const isInChord = chordNotes.includes(midiNote % 12);
-        
+
         // Draw black key
         ctx.beginPath();
         ctx.rect(x, 0, BLACK_KEY_WIDTH, BLACK_KEY_HEIGHT);
-        
+
         if (isPressed) {
-          ctx.fillStyle = '#4B9CFF'; // Blue when pressed
+          ctx.fillStyle = "#4B9CFF"; // Blue when pressed
         } else if (isInChord) {
-          ctx.fillStyle = 'rgba(255, 156, 0, 0.6)'; // Orange tint for chord notes
+          ctx.fillStyle = "rgba(255, 156, 0, 0.6)"; // Orange tint for chord notes
         } else if (isInScale) {
-          ctx.fillStyle = 'rgba(0, 200, 83, 0.6)'; // Green tint for scale notes
+          ctx.fillStyle = "rgba(0, 200, 83, 0.6)"; // Green tint for scale notes
         } else {
-          ctx.fillStyle = 'black';
+          ctx.fillStyle = "black";
         }
-        
+
         ctx.fill();
-        ctx.strokeStyle = '#333333';
+        ctx.strokeStyle = "#333333";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
     }
-    
+
     // Draw current scale and chord information
-    ctx.fillStyle = '#333';
-    ctx.font = '14px Arial';
+    ctx.fillStyle = "#333";
+    ctx.font = "14px Arial";
     ctx.fillText(`Current Scale: ${currentScale}`, 10, WHITE_KEY_HEIGHT + 20);
     ctx.fillText(`Current Chord: ${currentChord}`, 10, WHITE_KEY_HEIGHT + 40);
-    
+
     // Draw legend
     const legendX = ctx.canvas.width - 200;
-    ctx.fillText('Legend:', legendX, WHITE_KEY_HEIGHT + 20);
-    
+    ctx.fillText("Legend:", legendX, WHITE_KEY_HEIGHT + 20);
+
     // Pressed key
-    ctx.fillStyle = '#4B9CFF';
+    ctx.fillStyle = "#4B9CFF";
     ctx.fillRect(legendX, WHITE_KEY_HEIGHT + 25, 20, 10);
-    ctx.fillStyle = '#333';
-    ctx.fillText('Pressed', legendX + 25, WHITE_KEY_HEIGHT + 35);
-    
+    ctx.fillStyle = "#333";
+    ctx.fillText("Pressed", legendX + 25, WHITE_KEY_HEIGHT + 35);
+
     // Chord note
-    ctx.fillStyle = 'rgba(255, 156, 0, 0.6)';
+    ctx.fillStyle = "rgba(255, 156, 0, 0.6)";
     ctx.fillRect(legendX, WHITE_KEY_HEIGHT + 40, 20, 10);
-    ctx.fillStyle = '#333';
-    ctx.fillText('Chord Note', legendX + 25, WHITE_KEY_HEIGHT + 50);
-    
+    ctx.fillStyle = "#333";
+    ctx.fillText("Chord Note", legendX + 25, WHITE_KEY_HEIGHT + 50);
+
     // Scale note
-    ctx.fillStyle = 'rgba(0, 200, 83, 0.6)';
+    ctx.fillStyle = "rgba(0, 200, 83, 0.6)";
     ctx.fillRect(legendX, WHITE_KEY_HEIGHT + 55, 20, 10);
-    ctx.fillStyle = '#333';
-    ctx.fillText('Scale Note', legendX + 25, WHITE_KEY_HEIGHT + 65);
+    ctx.fillStyle = "#333";
+    ctx.fillText("Scale Note", legendX + 25, WHITE_KEY_HEIGHT + 65);
+
+    // Draw interval information
+    const recentNotes = getRecentDistinctNotes(noteHistory);
+    if (recentNotes) {
+      const [firstNote, secondNote] = recentNotes;
+      const { x: x1, isBlack: isBlack1 } = getKeyPosition(firstNote, ctx);
+      const { x: x2, isBlack: isBlack2 } = getKeyPosition(secondNote, ctx);
+
+      // Calculate centers of keys
+      const y1 = isBlack1 ? BLACK_KEY_HEIGHT : WHITE_KEY_HEIGHT;
+      const y2 = isBlack2 ? BLACK_KEY_HEIGHT : WHITE_KEY_HEIGHT;
+      const keyWidth1 = isBlack1 ? BLACK_KEY_WIDTH : WHITE_KEY_WIDTH;
+      const keyWidth2 = isBlack2 ? BLACK_KEY_WIDTH : WHITE_KEY_WIDTH;
+      const centerX1 = x1 + keyWidth1 / 2;
+      const centerX2 = x2 + keyWidth2 / 2;
+
+      // Draw line connecting the two keys
+      ctx.beginPath();
+      ctx.moveTo(centerX1, y1 + 10);
+      ctx.lineTo(centerX2, y2 + 10);
+      ctx.strokeStyle = "rgba(255, 50, 50, 0.7)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Get interval information
+      const interval = getInterval(firstNote, secondNote);
+
+      // Draw interval text
+      const midX = (centerX1 + centerX2) / 2;
+      const midY = Math.max(y1, y2) + 30;
+
+      // Background for text
+      const text = `${interval.num} semitones (${interval.name})`;
+      ctx.font = "12px AppleGothic";
+      const textMetrics = ctx.measureText(text);
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(
+        midX - textMetrics.width / 2 - 5,
+        midY - 10, // Vertically center rectangle
+        textMetrics.width + 10,
+        35
+      );
+
+      // Adjust the text position as well
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.fillText(text, midX, midY + 3.5); // Vertically center text in rectangle
+
+      // Draw text
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+
+
+      // Add interval quality indication
+      let qualityText = "";
+      if (interval.num === 0) {
+        qualityText = "Unison";
+      } else if ([3, 4, 8, 9].includes(interval.num)) {
+        qualityText = "Consonant";
+      } else if ([5, 7, 12].includes(interval.num)) {
+        qualityText = "Perfect";
+      } else {
+        qualityText = "Dissonant";
+      }
+
+      ctx.fillText(qualityText, midX, midY + 18.5);
+    }
   };
 
   return (
-    <div style={{ overflowX: 'auto', width: '100%', marginBottom: '20px' }}>
+    <div style={{ overflowX: "auto", width: "100%", marginBottom: "20px" }}>
       <canvas
         ref={canvasRef}
-        style={{ 
-          display: 'block',
-          margin: '0 auto',
-          maxWidth: '100%',
-          height: 'auto',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '5px'
+        style={{
+          display: "block",
+          margin: "0 auto",
+          maxWidth: "100%",
+          height: "auto",
+          backgroundColor: "#f5f5f5",
+          borderRadius: "5px",
         }}
       />
     </div>

@@ -4,7 +4,8 @@
   "main": "./main.js",
   "scripts": {
     "webpack": "webpack",
-    "start": "electron . --disable-gpu --use-angle=swiftshader",
+    "start": "NODE_ENV=development electron . --disable-gpu --use-angle=swiftshader",
+    "dev": "webpack serve --config webpack.config.js",
     "build": "tsc -p tsconfig.json && webpack"
   },
   "keywords": [],
@@ -16,6 +17,7 @@
     "@types/three": "^0.173.0",
     "d3": "^7.9.0",
     "electron": "^34.2.0",
+    "electron-reload": "^2.0.0-alpha.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "^0.173.0",
@@ -24,12 +26,16 @@
     "webmidi": "^3.1.12"
   },
   "devDependencies": {
+    "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
     "@types/d3": "^7.4.3",
     "@types/electron": "^1.4.38",
     "@types/react-dom": "^18.0.0",
     "@types/webmidi": "^2.1.0",
+    "copy-webpack-plugin": "^13.0.0",
+    "react-refresh": "^0.16.0",
     "ts-loader": "^9.5.2",
     "webpack": "^5.98.0",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.0"
   }
 }

@@ -175,21 +175,20 @@ const PatternVisualizer: React.FC<PatternVisualizerProps> = ({
     ctx.lineWidth = 1;
     
     // Draw treble staff
-    for (let i = 0; i < staffLines; i++) {
-      ctx.beginPath();
-      ctx.moveTo(50, staffTop + i * staffSpacing);
-      ctx.lineTo(ctx.canvas.width - 20, staffTop + i * staffSpacing);
-      ctx.stroke();
+    for (let i = 0; i < staffLines; i++) { // Loop through each line of the treble staff
+      ctx.beginPath(); // Begin a new path for drawing
+      ctx.moveTo(50, staffTop + i * staffSpacing); // Move to the starting point of the line on the canvas
+      ctx.lineTo(ctx.canvas.width - 20, staffTop + i * staffSpacing); // Draw a line to the ending point of the line on the canvas
+      ctx.stroke(); // Render the line on the canvas
     }
     
     // Draw bass staff
-    for (let i = 0; i < staffLines; i++) {
-      ctx.beginPath();
-      ctx.moveTo(50, staffTop + 70 + i * staffSpacing);
-      ctx.lineTo(ctx.canvas.width - 20, staffTop + 70 + i * staffSpacing);
-      ctx.stroke();
+    for (let i = 0; i < staffLines; i++) { // Loop through each line of the bass staff
+      ctx.beginPath(); // Begin a new path for drawing
+      ctx.moveTo(50, staffTop + 70 + i * staffSpacing); // Move to the starting point of the line on the canvas, offset by 70 for bass staff
+      ctx.lineTo(ctx.canvas.width - 20, staffTop + 70 + i * staffSpacing); // Draw a line to the ending point of the line on the canvas, offset by 70 for bass staff
+      ctx.stroke(); // Render the line on the canvas
     }
-    
     // Draw clefs
     ctx.fillStyle = 'white';
     ctx.font = '40px serif';
@@ -225,8 +224,8 @@ const PatternVisualizer: React.FC<PatternVisualizerProps> = ({
     
     // Draw connecting lines between consecutive notes
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(75, 156, 255, 0.8)';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(214, 255, 92, 0.8)'; // Staff view connecting lines
+    ctx.lineWidth = 1;
     
     // Group notes by timestamp to identify chords
     const notesByTime: {[time: number]: typeof notes} = {};
@@ -266,10 +265,10 @@ const PatternVisualizer: React.FC<PatternVisualizerProps> = ({
     notes.forEach(note => {
       // Size based on velocity
       const radius = 4 + (note.velocity / 127) * 6;
-      
+      // CIRCLE COLORS for STAFF VIEW
       ctx.beginPath();
       ctx.arc(note.x, note.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `hsl(210, 100%, ${40 + (note.velocity / 127) * 30}%)`;
+      ctx.fillStyle = `hsl(51, 100%, ${40 + (note.velocity / 127) * 30}%)`;
       ctx.fill();
       
       // Add note name for recent notes
@@ -433,7 +432,7 @@ const PatternVisualizer: React.FC<PatternVisualizerProps> = ({
           
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.fillStyle = `hsl(210, 100%, ${40 + (note.velocity / 127) * 30}%)`;
+          ctx.fillStyle = `hsl(51, 100%, ${40 + (note.velocity / 127) * 30}%)`;
           ctx.fill();
           
           // Add note name for very recent notes
