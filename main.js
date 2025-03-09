@@ -42,6 +42,7 @@ function createWindow() {
     const win = new electron_1.BrowserWindow({
         width: 1000,
         height: 600,
+        frame: false,
         webPreferences: {
             nodeIntegration: true,
             contextIsolation: false,

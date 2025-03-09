@@ -48,6 +48,8 @@ const App = () => {
     const [currentChord, setCurrentChord] = (0, react_1.useState)('');
     const [detectedScales, setDetectedScales] = (0, react_1.useState)([]);
     const [isConnected, setIsConnected] = (0, react_1.useState)(false);
+    const [keyboardScaleMode, setKeyboardScaleMode] = (0, react_1.useState)('dynamic');
+    const [keyboardFixedScale, setKeyboardFixedScale] = (0, react_1.useState)('C major');
     // Initialize Web MIDI
     (0, react_1.useEffect)(() => {
         try {
@@ -111,20 +113,21 @@ const App = () => {
         }
     }, [noteHistory]);
     return (react_1.default.createElement("div", { style: {
-            fontFamily: 'Arial, sans-serif',
-            background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-            color: '#ffffff',
-            padding: '20px',
+            fontFamily: 'Avenir',
+            background: 'linear-gradient(135deg,rgb(51, 51, 81),rgb(0, 0, 0))',
+            color: 'hsl(0, 0.00%, 100.00%)',
             borderRadius: '10px',
             boxShadow: '0 0 20px rgba(0, 0, 0, 0.5)',
             width: '100%',
-            maxWidth: '1400px',
+            maxWidth: '1980px',
             margin: '0 auto',
             boxSizing: 'border-box',
         } },
         react_1.default.createElement("h1", { style: {
                 fontSize: '2em',
                 textAlign: 'center',
+                verticalAlign: 'middle',
+                padding: '20px',
                 textShadow: '0 0 10px #0a0a23',
                 marginBottom: '20px'
             } }, "Piano Improvisation Assistant"),
@@ -144,7 +147,35 @@ const App = () => {
                 borderRadius: '8px',
                 overflow: 'hidden'
             } },
-            react_1.default.createElement(KeyboardVisualization_1.default, { noteHistory: noteHistory, currentScale: currentScale, currentChord: currentChord })),
+            react_1.default.createElement("div", { style: { display: 'flex', alignItems: 'center', marginBottom: '10px' } },
+                react_1.default.createElement("span", { style: { marginRight: '10px' } }, "Keyboard Scale Mode:"),
+                react_1.default.createElement("button", { onClick: () => setKeyboardScaleMode('dynamic'), style: {
+                        background: keyboardScaleMode === 'dynamic' ? 'rgba(75, 156, 255, 0.8)' : 'rgba(75, 156, 255, 0.2)',
+                        padding: '4px 8px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        marginRight: '5px'
+                    } }, "Dynamic"),
+                react_1.default.createElement("button", { onClick: () => setKeyboardScaleMode('fixed'), style: {
+                        background: keyboardScaleMode === 'fixed' ? 'rgba(75, 156, 255, 0.8)' : 'rgba(75, 156, 255, 0.2)',
+                        padding: '4px 8px',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        marginRight: '10px'
+                    } }, "Fixed"),
+                keyboardScaleMode === 'fixed' && (react_1.default.createElement(react_1.default.Fragment, null,
+                    react_1.default.createElement("select", { value: keyboardFixedScale, onChange: (e) => setKeyboardFixedScale(e.target.value), style: { padding: '4px', backgroundColor: '#282840', color: 'white', border: '1px solid #444' } },
+                        react_1.default.createElement("option", { value: "C major" }, "C Major"),
+                        react_1.default.createElement("option", { value: "A minor" }, "A Minor"),
+                        react_1.default.createElement("option", { value: "G major" }, "G Major"),
+                        react_1.default.createElement("option", { value: "E minor" }, "E Minor"),
+                        react_1.default.createElement("option", { value: "F major" }, "F Major"),
+                        react_1.default.createElement("option", { value: "D minor" }, "D Minor"),
+                        react_1.default.createElement("option", { value: "D major" }, "D Major"),
+                        react_1.default.createElement("option", { value: "B minor" }, "B Minor"))))),
+            react_1.default.createElement(KeyboardVisualization_1.default, { noteHistory: noteHistory, currentScale: currentScale, currentChord: currentChord, scaleMode: keyboardScaleMode, fixedScale: keyboardFixedScale })),
         react_1.default.createElement("div", { style: {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -162,16 +193,16 @@ const App = () => {
                     background: 'rgba(255, 255, 255, 0.1)',
                     borderRadius: '8px',
                 } },
-                react_1.default.createElement("h3", { style: { fontSize: '1.2rem', margin: '0 0 10px 0' } }, "Current Playing"),
-                react_1.default.createElement("div", { style: { marginBottom: '10px' } },
+                react_1.default.createElement("h3", { style: { fontSize: '2.0rem', margin: '0 0 10px 0' } }, "Current Playing"),
+                react_1.default.createElement("div", { style: { fontSize: '1.4rem', color: 'rgba(255, 255, 255, 0.95)', marginBottom: '10px' } },
                     react_1.default.createElement("strong", null, "Scale:"),
                     " ",
                     currentScale || 'None detected'),
-                react_1.default.createElement("div", { style: { marginBottom: '10px' } },
+                react_1.default.createElement("div", { style: { fontSize: '1.4rem', color: 'rgba(255, 255, 255, 0.95)', marginBottom: '10px' } },
                     react_1.default.createElement("strong", null, "Chord:"),
                     " ",
                     currentChord || 'None detected'),
-                react_1.default.createElement("div", null,
+                react_1.default.createElement("div", { style: { fontSize: '1.4rem', color: 'rgba(255, 255, 255, 0.95)', marginBottom: '10px' } },
                     react_1.default.createElement("strong", null, "Recent Notes:"),
                     react_1.default.createElement("ul", { style: { listStyle: 'none', padding: 0, maxHeight: '150px', overflowY: 'auto' } }, noteHistory.slice().reverse().map((n, i) => (react_1.default.createElement("li", { key: i, style: { margin: '5px 0', opacity: 0.8 } },
                         tonal_1.Note.fromMidi(n.note),

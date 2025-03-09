@@ -38,7 +38,7 @@ console.log('NODE_ENV from preload:', window.processEnv.NODE_ENV);
 console.log('NODE_ENV:', process.env.NODE_ENV);
 const react_1 = __importStar(require("react"));
 const tonal_1 = require("tonal");
-const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => {
+const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, scaleMode = "dynamic", fixedScale = "C major", }) => {
     const canvasRef = (0, react_1.useRef)(null);
     // Constants for keyboard layout
     const KEYS_COUNT = 88;
@@ -91,7 +91,7 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
         const whiteKeysCount = countWhiteKeys(FIRST_KEY_MIDI, FIRST_KEY_MIDI + KEYS_COUNT - 1);
         const width = whiteKeysCount * WHITE_KEY_WIDTH;
         canvas.width = width;
-        canvas.height = WHITE_KEY_HEIGHT + 60; // Extra space for labels and suggestions
+        canvas.height = WHITE_KEY_HEIGHT + 100; // Extra space for labels and suggestions
         // Draw keyboard
         drawKeyboard(ctx, noteHistory, currentScale, currentChord);
     }, [noteHistory, currentScale, currentChord]);
@@ -151,14 +151,16 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
     };
     // Extract scale notes from the current scale
     const getScaleNotes = (scale) => {
-        if (!scale || scale === "Unknown")
+        // If using fixed scale mode, use the provided fixed scale
+        const scaleToUse = scaleMode === 'fixed' ? fixedScale : scale;
+        if (!scaleToUse || scaleToUse === 'Unknown')
             return [];
-        const [root, ...typeParts] = scale.split(" ");
-        const type = typeParts.join(" ");
+        const [root, ...typeParts] = scaleToUse.split(' ');
+        const type = typeParts.join(' ');
         if (!root)
             return [];
         try {
-            const scaleObj = require("tonal").Scale.get(`${root} ${type}`);
+            const scaleObj = tonal_1.Scale.get(`${root} ${type}`);
             if (!scaleObj || !scaleObj.notes)
                 return [];
             // Map to MIDI note numbers (mod 12 for octave independence)
@@ -202,7 +204,7 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
         // Extract active notes (pressed within the last 500ms)
         const now = Date.now();
         const activeNotes = noteHistory
-            .filter((n) => now - n.timestamp < 500)
+            .filter((n) => now - n.timestamp < 100) // Reduce to 100ms to fix persistence
             .map((n) => n.note);
         // Extract scale and chord notes
         const scaleNotes = getScaleNotes(currentScale);
@@ -277,6 +279,82 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
         ctx.font = "14px Arial";
         ctx.fillText(`Current Scale: ${currentScale}`, 10, WHITE_KEY_HEIGHT + 20);
         ctx.fillText(`Current Chord: ${currentChord}`, 10, WHITE_KEY_HEIGHT + 40);
+        // Extract pressed notes and sort them
+        const pressedNotes = activeNotes
+            .map((note) => ({
+            midiNote: note,
+            x: getKeyPosition(note, ctx).x +
+                (isBlackKey(note) ? BLACK_KEY_WIDTH / 2 : WHITE_KEY_WIDTH / 2),
+            name: tonal_1.Note.fromMidi(note),
+        }))
+            .sort((a, b) => a.midiNote - b.midiNote);
+        // Draw interval lines and labels between pressed notes
+        if (pressedNotes.length >= 2) {
+            for (let i = 0; i < pressedNotes.length - 1; i++) {
+                const startNote = pressedNotes[i];
+                const endNote = pressedNotes[i + 1];
+                // Calculate interval
+                const interval = endNote.midiNote - startNote.midiNote;
+                // Draw connecting line
+                ctx.beginPath();
+                ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+                ctx.lineWidth = 2;
+                const lineY = WHITE_KEY_HEIGHT + 10;
+                ctx.moveTo(startNote.x, lineY);
+                ctx.lineTo(endNote.x, lineY);
+                ctx.stroke();
+                // Add note names at endpoints
+                ctx.fillStyle = "black";
+                ctx.font = "bold 14px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(startNote.name.replace(/\d+$/, ""), startNote.x, lineY - 5);
+                ctx.fillText(endNote.name.replace(/\d+$/, ""), endNote.x, lineY - 5);
+                // Add semitone markers
+                const distance = endNote.x - startNote.x;
+                const step = distance / interval;
+                for (let j = 1; j < interval; j++) {
+                    const markerX = startNote.x + j * step;
+                    // Draw small tick mark
+                    ctx.beginPath();
+                    ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(markerX, lineY - 3);
+                    ctx.lineTo(markerX, lineY + 3);
+                    ctx.stroke();
+                    // Draw number
+                    ctx.fillStyle = "black";
+                    ctx.font = "10px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(j.toString(), markerX, lineY + 15);
+                }
+                // Add interval information
+                let intervalName = "";
+                try {
+                    // Extract interval name using tonal.js
+                    const semitones = interval % 12;
+                    intervalName = tonal_1.Interval.fromSemitones(semitones);
+                }
+                catch (e) {
+                    intervalName = `${interval} semitones`;
+                }
+                // Add chord suggestion if applicable
+                let chordName = "";
+                if (interval === 3 || interval === 4) {
+                    // Major third or minor third
+                    const root = startNote.name.replace(/\d+$/, "");
+                    chordName = interval === 4 ? `${root} maj` : `${root} min`;
+                }
+                // Draw the interval/chord label
+                const midX = startNote.x + distance / 2;
+                ctx.fillStyle = "black";
+                ctx.font = "bold 12px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(`${interval} semitones (${intervalName})`, midX, lineY + 30);
+                if (chordName) {
+                    ctx.fillText(chordName, midX, lineY + 45);
+                }
+            }
+        }
         // Draw legend
         const legendX = ctx.canvas.width - 200;
         ctx.fillText("Legend:", legendX, WHITE_KEY_HEIGHT + 20);
@@ -322,14 +400,18 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
             const midY = Math.max(y1, y2) + 30;
             // Background for text
             const text = `${interval.num} semitones (${interval.name})`;
-            ctx.font = "12px Arial";
+            ctx.font = "12px AppleGothic";
             const textMetrics = ctx.measureText(text);
             ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-            ctx.fillRect(midX - textMetrics.width / 2 - 5, midY - 12, textMetrics.width + 10, 24);
+            ctx.fillRect(midX - textMetrics.width / 2 - 5, midY - 10, // Vertically center rectangle
+            textMetrics.width + 10, 35);
+            // Adjust the text position as well
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.fillText(text, midX, midY + 3.5); // Vertically center text in rectangle
             // Draw text
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
-            ctx.fillText(text, midX, midY);
             // Add interval quality indication
             let qualityText = "";
             if (interval.num === 0) {
@@ -342,9 +424,9 @@ const KeyboardVisualization = ({ noteHistory, currentScale, currentChord, }) => 
                 qualityText = "Perfect";
             }
             else {
-                qualityText = "DIZZ";
+                qualityText = "Dissonant";
             }
-            ctx.fillText(qualityText, midX, midY + 15);
+            ctx.fillText(qualityText, midX, midY + 18.5);
         }
     };
     return (react_1.default.createElement("div", { style: { overflowX: "auto", width: "100%", marginBottom: "20px" } },

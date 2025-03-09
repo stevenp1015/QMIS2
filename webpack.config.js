@@ -4,6 +4,7 @@ const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'development',
+  target: 'electron-renderer',
   entry: './renderer.tsx',
   output: {
     filename: 'bundle.js',
@@ -20,7 +21,11 @@ module.exports = {
     ],
   },
   resolve: {
-    extensions: ['.tsx', '.ts', '.js'],
+    extensions: ['.tsx', '.ts', '.js']
+    // Removed fallback configuration to allow native Node.js modules
+  },
+  externals: {
+    electron: 'require("electron")'
   },
   devtool: 'source-map',
   devServer: {

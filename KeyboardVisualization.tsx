@@ -1,9 +1,5 @@
-/// <reference path="./globals.d.ts" />
-
-console.log('NODE_ENV from preload:', window.processEnv.NODE_ENV);
-console.log('NODE_ENV:', process.env.NODE_ENV);
-import React, { useEffect, useRef } from 'react';
-import { Note, Interval } from 'tonal';
+import React, { useEffect, useRef } from "react";
+import { Note, Interval, Scale } from "tonal";
 
 interface KeyboardVisualizationProps {
   noteHistory: Array<{
@@ -13,12 +9,16 @@ interface KeyboardVisualizationProps {
   }>;
   currentScale: string;
   currentChord: string;
+  scaleMode?: "dynamic" | "fixed";
+  fixedScale?: string;
 }
 
 const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
   noteHistory,
   currentScale,
   currentChord,
+  scaleMode = "dynamic",
+  fixedScale = "C major",
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -29,55 +29,6 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
   const BLACK_KEY_WIDTH = 14;
   const BLACK_KEY_HEIGHT = 80;
   const FIRST_KEY_MIDI = 21; // A0
-
-  const getInterval = (
-    firstNote: number,
-    secondNote: number
-  ): { num: number; name: string } => {
-    // Get note names from MIDI numbers
-    const firstNoteName = Note.fromMidi(firstNote);
-    const secondNoteName = Note.fromMidi(secondNote);
-
-    if (!firstNoteName || !secondNoteName) {
-      return { num: 0, name: "Unknown" };
-    }
-
-    // Calculate the interval using tonal.js
-    const intervalName = Interval.distance(firstNoteName, secondNoteName);
-
-    // Get interval properties
-    const semitones = Math.abs(secondNote - firstNote);
-    // intervalName is already defined above
-
-    return {
-      num: semitones,
-      name: intervalName,
-    };
-  };
-
-  // Function to get two most recent distinct notes
-  const getRecentDistinctNotes = (
-    noteHistory: Array<{ note: number; velocity: number; timestamp: number }>
-  ): [number, number] | null => {
-    // Sort by timestamp in descending order (most recent first)
-    const sortedNotes = [...noteHistory].sort(
-      (a, b) => b.timestamp - a.timestamp
-    );
-
-    if (sortedNotes.length < 2) return null;
-
-    // Get most recent note
-    const lastNote = sortedNotes[0].note;
-
-    // Find the most recent different note
-    for (let i = 1; i < sortedNotes.length; i++) {
-      if (sortedNotes[i].note !== lastNote) {
-        return [sortedNotes[i].note, lastNote];
-      }
-    }
-
-    return null;
-  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,11 +44,11 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
     );
     const width = whiteKeysCount * WHITE_KEY_WIDTH;
     canvas.width = width;
-    canvas.height = WHITE_KEY_HEIGHT + 100; // Extra space for labels and suggestions
+    canvas.height = WHITE_KEY_HEIGHT + 60; // Extra space for labels and suggestions
 
     // Draw keyboard
     drawKeyboard(ctx, noteHistory, currentScale, currentChord);
-  }, [noteHistory, currentScale, currentChord]);
+  }, [noteHistory, currentScale, currentChord, scaleMode, fixedScale]);
 
   // Count white keys in range
   const countWhiteKeys = (startNote: number, endNote: number): number => {
@@ -160,13 +111,17 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
 
   // Extract scale notes from the current scale
   const getScaleNotes = (scale: string): number[] => {
-    if (!scale || scale === "Unknown") return [];
-    const [root, ...typeParts] = scale.split(" ");
+    // If using fixed scale mode, use the provided fixed scale
+    const scaleToUse = scaleMode === "fixed" ? fixedScale : scale;
+
+    if (!scaleToUse || scaleToUse === "Unknown") return [];
+
+    const [root, ...typeParts] = scaleToUse.split(" ");
     const type = typeParts.join(" ");
     if (!root) return [];
 
     try {
-      const scaleObj = require("tonal").Scale.get(`${root} ${type}`);
+      const scaleObj = Scale.get(`${root} ${type}`);
       if (!scaleObj || !scaleObj.notes) return [];
 
       // Map to MIDI note numbers (mod 12 for octave independence)
@@ -216,7 +171,7 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
     // Extract active notes (pressed within the last 500ms)
     const now = Date.now();
     const activeNotes = noteHistory
-      .filter((n) => now - n.timestamp < 500)
+      .filter((n) => now - n.timestamp < 250)
       .map((n) => n.note);
 
     // Extract scale and chord notes
@@ -256,11 +211,24 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // Add note label at the bottom of white keys
+        // Add note label at the bottom of white keys when pressed
+        if (isPressed) {
+          ctx.fillStyle = "#333333";
+          ctx.font = "10px AppleGothic";
+          ctx.textAlign = "center";
+          const noteName = Note.fromMidi(midiNote).replace(/\d+$/, "");
+          ctx.fillText(
+            noteName,
+            x + WHITE_KEY_WIDTH / 2,
+            WHITE_KEY_HEIGHT + 15
+          );
+        }
+
+        // Add C note label at the bottom of white keys
         if (midiNote % 12 === 0) {
           // C notes
           ctx.fillStyle = "#333333";
-          ctx.font = "10px Arial";
+          ctx.font = "10px AppleGothic";
           ctx.fillText(
             `C${Math.floor(midiNote / 12) - 1}`,
             x + 2,
@@ -302,6 +270,117 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
         ctx.strokeStyle = "#333333";
         ctx.lineWidth = 1;
         ctx.stroke();
+
+        // Add note label at the bottom of black keys when pressed
+        if (isPressed) {
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "10px AppleGothic";
+          ctx.textAlign = "center";
+          const noteName = Note.fromMidi(midiNote).replace(/\d+$/, "");
+          ctx.fillText(
+            noteName,
+            x + BLACK_KEY_WIDTH / 2,
+            BLACK_KEY_HEIGHT + 15
+          );
+        }
+      }
+    }
+
+    // Extract pressed notes and sort them
+    const pressedNotes = activeNotes
+      .map((note) => ({
+        midiNote: note,
+        x:
+          getKeyPosition(note, ctx).x +
+          (isBlackKey(note) ? BLACK_KEY_WIDTH / 2 : WHITE_KEY_WIDTH / 2),
+        name: Note.fromMidi(note).replace(/\d+$/, ""),
+      }))
+      .sort((a, b) => a.midiNote - b.midiNote);
+
+    // Draw interval lines and labels between pressed notes if two or more are pressed
+    if (pressedNotes.length > 1) { // MODIFIED LINE
+      for (let i = 0; i < pressedNotes.length - 1; i++) {
+        const startNote = pressedNotes[i];
+        const endNote = pressedNotes[i + 1];
+
+        // Calculate interval
+        const interval = endNote.midiNote - startNote.midiNote;
+
+        // Draw connecting line
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+        ctx.lineWidth = 2;
+        const lineY = WHITE_KEY_HEIGHT + 20;
+        ctx.moveTo(startNote.x, lineY);
+        ctx.lineTo(endNote.x, lineY);
+        ctx.stroke();
+
+        // Add note names at endpoints
+        ctx.fillStyle = "black";
+        ctx.font = "bold 14px AppleGothic";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          startNote.name,
+          startNote.x,
+          lineY - 5
+        );
+        ctx.fillText(endNote.name, endNote.x, lineY - 5);
+
+        // Add semitone markers
+        const distance = endNote.x - startNote.x;
+        const step = distance / interval;
+
+        for (let j = 1; j < interval; j++) {
+          const markerX = startNote.x + j * step;
+
+          // Draw small tick mark
+          ctx.beginPath();
+          ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+          ctx.lineWidth = 1;
+          ctx.moveTo(markerX, lineY - 3);
+          ctx.lineTo(markerX, lineY + 3);
+          ctx.stroke();
+
+          // Draw number
+          ctx.fillStyle = "black";
+          ctx.font = "10px Arial";
+          ctx.textAlign = "center";
+          ctx.fillText(j.toString(), markerX, lineY + 15);
+        }
+
+        // Add interval information
+        let intervalName = "";
+        try {
+          // Extract interval name using tonal.js
+          const semitones = interval % 12;
+          const intervalObj = Interval.fromSemitones(semitones);
+          intervalName = intervalObj ? intervalObj : `${interval} semitones`;
+        } catch (e) {
+          intervalName = `${interval} semitones`;
+        }
+
+        // Add chord suggestion if applicable
+        let chordName = "";
+        if (interval === 3 || interval === 4) {
+          // Major third or minor third
+          const root = startNote.name;
+          chordName = interval === 4 ? `${root} maj` : `${root} min`;
+        }
+
+        // Draw the interval/chord label
+        const midX = startNote.x + distance / 2;
+        ctx.fillStyle = "black";
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(
+          `${interval}`,
+          midX,
+          lineY + 30
+        );
+
+        if (chordName) {
+          ctx.fillText(chordName, midX, lineY + 45);
+        }
       }
     }
 
@@ -332,73 +411,6 @@ const KeyboardVisualization: React.FC<KeyboardVisualizationProps> = ({
     ctx.fillRect(legendX, WHITE_KEY_HEIGHT + 55, 20, 10);
     ctx.fillStyle = "#333";
     ctx.fillText("Scale Note", legendX + 25, WHITE_KEY_HEIGHT + 65);
-
-    // Draw interval information
-    const recentNotes = getRecentDistinctNotes(noteHistory);
-    if (recentNotes) {
-      const [firstNote, secondNote] = recentNotes;
-      const { x: x1, isBlack: isBlack1 } = getKeyPosition(firstNote, ctx);
-      const { x: x2, isBlack: isBlack2 } = getKeyPosition(secondNote, ctx);
-
-      // Calculate centers of keys
-      const y1 = isBlack1 ? BLACK_KEY_HEIGHT : WHITE_KEY_HEIGHT;
-      const y2 = isBlack2 ? BLACK_KEY_HEIGHT : WHITE_KEY_HEIGHT;
-      const keyWidth1 = isBlack1 ? BLACK_KEY_WIDTH : WHITE_KEY_WIDTH;
-      const keyWidth2 = isBlack2 ? BLACK_KEY_WIDTH : WHITE_KEY_WIDTH;
-      const centerX1 = x1 + keyWidth1 / 2;
-      const centerX2 = x2 + keyWidth2 / 2;
-
-      // Draw line connecting the two keys
-      ctx.beginPath();
-      ctx.moveTo(centerX1, y1 + 10);
-      ctx.lineTo(centerX2, y2 + 10);
-      ctx.strokeStyle = "rgba(255, 50, 50, 0.7)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Get interval information
-      const interval = getInterval(firstNote, secondNote);
-
-      // Draw interval text
-      const midX = (centerX1 + centerX2) / 2;
-      const midY = Math.max(y1, y2) + 30;
-
-      // Background for text
-      const text = `${interval.num} semitones (${interval.name})`;
-      ctx.font = "12px AppleGothic";
-      const textMetrics = ctx.measureText(text);
-      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-      ctx.fillRect(
-        midX - textMetrics.width / 2 - 5,
-        midY - 10, // Vertically center rectangle
-        textMetrics.width + 10,
-        35
-      );
-
-      // Adjust the text position as well
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-      ctx.fillText(text, midX, midY + 3.5); // Vertically center text in rectangle
-
-      // Draw text
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-
-
-      // Add interval quality indication
-      let qualityText = "";
-      if (interval.num === 0) {
-        qualityText = "Unison";
-      } else if ([3, 4, 8, 9].includes(interval.num)) {
-        qualityText = "Consonant";
-      } else if ([5, 7, 12].includes(interval.num)) {
-        qualityText = "Perfect";
-      } else {
-        qualityText = "Dissonant";
-      }
-
-      ctx.fillText(qualityText, midX, midY + 18.5);
-    }
   };
 
   return (

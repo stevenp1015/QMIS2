@@ -208,7 +208,7 @@ const PatternVisualizer = ({ noteHistory, currentScale }) => {
         }));
         // Draw connecting lines between consecutive notes
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(75, 156, 255, 0.8)';
+        ctx.strokeStyle = 'rgba(214, 255, 92, 0.8)'; // Staff view connecting lines
         ctx.lineWidth = 1;
         // Group notes by timestamp to identify chords
         const notesByTime = {};
@@ -245,9 +245,10 @@ const PatternVisualizer = ({ noteHistory, currentScale }) => {
         notes.forEach(note => {
             // Size based on velocity
             const radius = 4 + (note.velocity / 127) * 6;
+            // CIRCLE COLORS for STAFF VIEW
             ctx.beginPath();
             ctx.arc(note.x, note.y, radius, 0, Math.PI * 2);
-            ctx.fillStyle = `hsl(210, 100%, ${40 + (note.velocity / 127) * 30}%)`;
+            ctx.fillStyle = `hsl(51, 100%, ${40 + (note.velocity / 127) * 30}%)`;
             ctx.fill();
             // Add note name for recent notes
             if (lastTime - note.timestamp < 1000) {
@@ -384,7 +385,7 @@ const PatternVisualizer = ({ noteHistory, currentScale }) => {
                     const radius = 4 + (note.velocity / 127) * 6;
                     ctx.beginPath();
                     ctx.arc(x, y, radius, 0, Math.PI * 2);
-                    ctx.fillStyle = `hsl(210, 100%, ${40 + (note.velocity / 127) * 30}%)`;
+                    ctx.fillStyle = `hsl(51, 100%, ${40 + (note.velocity / 127) * 30}%)`;
                     ctx.fill();
                     // Add note name for very recent notes
                     if (now - note.timestamp < 1000) {

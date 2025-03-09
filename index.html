@@ -1,18 +1,22 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>QMIS</title>
-<style>body { margin: 0; padding: 0; }</style>
+  <style>body { margin: 0; padding: 0; }</style>
 </head>
 <body>
   <div id="root"></div>
   <script>
-  if (window.processEnv.NODE_ENV === 'development') {
-    document.write('<script src="http://localhost:9000/bundle.js"><\/script>');
-  } else {
-    document.write('<script src="./dist/bundle.js"><\/script>');
-  }
-</script>
+    if (window.processEnv.NODE_ENV === 'development') {
+      const script = document.createElement('script');
+      script.src = "http://localhost:9000/bundle.js";
+      document.body.appendChild(script);
+    } else {
+      const script = document.createElement('script');
+      script.src = "./dist/bundle.js";
+      document.body.appendChild(script);
+    }
+  </script>
 </body>
 </html>
